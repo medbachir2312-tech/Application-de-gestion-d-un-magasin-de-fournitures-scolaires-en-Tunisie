@@ -1,0 +1,659 @@
+@startuml
+title
+Gestion Magasin Fournitures Scolaires - Tunisie (v7.0)
+Diagramme de classes corrigé
+end title
+
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam linetype ortho
+hide empty members
+
+note as NotePerimetre
+  Périmètre fixe : un gérant, un magasin, une caisse, aucun dépôt.
+  Application locale Flutter + SQLite ; aucun login applicatif.
+  Montants : int en millimes TND. Quantités : int à échelle 1000.
+  Les documents validés ne sont jamais supprimés physiquement.
+end note
+
+' =====================================================
+package "Paramètres et système" {
+  class ParametresMagasin <<singleton>> {
+    +id : int = 1
+    +nom : String
+    +telephone : String [0..1]
+    +adresse : String [0..1]
+    +logo : Blob [0..1]
+    +identifiantFiscal : String [0..1]
+    +largeurTicketMm : int = 80
+    +imprimante : String [0..1]
+    +impressionAutomatique : boolean
+    +piedTicket : String [0..1]
+    +informationsFiscales : String [0..1]
+  }
+
+  class CategorieFiscale {
+    +id : int
+    +code : String
+    +libelle : String
+    +tauxBasisPoints : int [0..1]
+    +mentionTicket : String [0..1]
+    +actif : boolean
+  }
+
+  class CompteurDocument {
+    +typeDocument : TypeDocument
+    +annee : int
+    +dernierNumero : int
+    +attribuerProchainNumero() : String
+  }
+
+  class Sauvegarde {
+    +id : int
+    +dateHeure : DateTime
+    +chemin : String
+    +type : TypeSauvegarde
+    +statut : StatutSauvegarde
+    +messageErreur : String [0..1]
+  }
+}
+
+' =====================================================
+package "Catalogue et stock" {
+  class Famille {
+    +id : int
+    +nom : String
+    +description : String [0..1]
+    +actif : boolean
+  }
+
+  class SousFamille {
+    +id : int
+    +nom : String
+    +description : String [0..1]
+    +actif : boolean
+  }
+
+  class Emplacement {
+    +id : int
+    +code : String [0..1]
+    +nom : String
+    +rayon : String [0..1]
+    +etagere : String [0..1]
+    +description : String [0..1]
+    +actif : boolean
+  }
+
+  class Article {
+    +id : int
+    +code : String
+    +codeBarres : String [0..1]
+    +designation : String
+    +description : String [0..1]
+    +marque : String [0..1]
+    +unite : String
+    +quantiteDecimale : boolean
+    +coutMoyenPondereMillimes : int
+    +dernierPrixAchatMillimes : int [0..1]
+    +prixVenteTtcMillimes : int
+    +remiseMaxBasisPoints : int
+    +stockDisponibleMilliunites : int
+    +stockEndommageMilliunites : int
+    +stockMinimumMilliunites : int
+    +categorieFiscaleId : int [0..1]
+    +photo : Blob [0..1]
+    +actif : boolean
+    +margeUnitaireMillimes() : int
+    +tauxMargeBasisPoints() : int [0..1]
+    +enRupture() : boolean
+    +sousMinimum() : boolean
+  }
+
+  class MouvementStock {
+    +id : int
+    +type : TypeMouvementStock
+    +compartiment : CompartimentStock
+    +quantiteMilliunites : int
+    +stockAvantMilliunites : int
+    +stockApresMilliunites : int
+    +dateHeure : DateTime
+    +typeSource : TypeSourceDocument [0..1]
+    +idSource : int [0..1]
+    +motif : String [0..1]
+    +mouvementInverseId : int [0..1]
+  }
+
+  class Inventaire {
+    +id : int
+    +dateDebut : DateTime
+    +dateValidation : DateTime [0..1]
+    +statut : StatutInventaire
+    +remarque : String [0..1]
+    +valider()
+  }
+
+  class LigneInventaire {
+    +id : int
+    +compartiment : CompartimentStock
+    +stockTheoriqueMilliunites : int
+    +stockCompteMilliunites : int
+    +ecartMilliunites() : int
+  }
+
+  class CorrectionStock {
+    +id : int
+    +numero : String [0..1]
+    +dateHeure : DateTime
+    +motif : String
+    +statut : StatutDocument
+    +valider()
+    +annuler(motif : String)
+  }
+
+  class LigneCorrectionStock {
+    +id : int
+    +compartiment : CompartimentStock
+    +sens : SensMouvement
+    +quantiteMilliunites : int
+  }
+}
+
+' =====================================================
+package "Clients et fournisseurs" {
+  class Client {
+    +id : int
+    +code : String
+    +nom : String
+    +telephone : String [0..1]
+    +adresse : String [0..1]
+    +identifiantFiscal : String [0..1]
+    +creditAutorise : boolean
+    +plafondCreditMillimes : int [0..1]
+    +actif : boolean
+    +remarque : String [0..1]
+    +soldeDuMillimes() : int
+    +avoirDisponibleMillimes() : int
+  }
+
+  class Fournisseur {
+    +id : int
+    +code : String
+    +raisonSociale : String
+    +contact : String [0..1]
+    +telephone : String [0..1]
+    +adresse : String [0..1]
+    +identifiantFiscal : String [0..1]
+    +email : String [0..1]
+    +actif : boolean
+    +remarque : String [0..1]
+    +soldeDuMillimes() : int
+    +avoirDisponibleMillimes() : int
+  }
+}
+
+' =====================================================
+package "Caisse" {
+  class SessionCaisse {
+    +id : int
+    +dateHeureOuverture : DateTime
+    +fondsInitialMillimes : int
+    +dateHeureCloture : DateTime [0..1]
+    +soldeTheoriqueClotureMillimes : int [0..1]
+    +especesCompteesMillimes : int [0..1]
+    +ecartMillimes : int [0..1]
+    +remarqueEcart : String [0..1]
+    +statut : StatutSession
+    +soldeTheoriqueMillimes() : int
+    +calculerEcartMillimes() : int
+    +cloturer(especesCompteesMillimes : int, remarque : String)
+  }
+
+  class MouvementCaisse {
+    +id : int
+    +numero : String
+    +sens : SensMouvement
+    +categorie : CategorieMouvementCaisse
+    +montantMillimes : int
+    +motif : String
+    +dateHeure : DateTime
+    +typeSource : TypeSourceDocument [0..1]
+    +idSource : int [0..1]
+    +mouvementOrigineId : int [0..1]
+  }
+
+  class OperationCaisseManuelle {
+    +id : int
+    +dateHeure : DateTime
+    +categorie : CategorieOperationCaisseManuelle
+    +montantMillimes : int
+    +motif : String
+    +statut : StatutDocument
+    +annuler(motif : String)
+  }
+}
+
+' =====================================================
+package "Ventes et règlements clients" {
+  class Vente {
+    +id : int
+    +numero : String
+    +dateHeure : DateTime
+    +totalNetMillimes : int
+    +montantCashAppliqueMillimes : int
+    +especesPresenteesMillimes : int
+    +monnaieRendueMillimes : int
+    +typeVente : TypeVente
+    +echeance : Date [0..1]
+    +statut : StatutVente
+    +motifAnnulation : String [0..1]
+    +resteDuInitialMillimes() : int
+    +soldeDuCourantMillimes() : int
+    +valider()
+    +mettreEnAttente()
+    +annuler(motif : String)
+    +imprimerTicket()
+  }
+
+  class LigneVente {
+    +id : int
+    +quantiteMilliunites : int
+    +prixUnitaireMillimes : int
+    +typeRemise : TypeRemise
+    +remisePourcentageBasisPoints : int [0..1]
+    +remiseMontantMillimes : int [0..1]
+    +remiseAppliqueeMillimes : int
+    +montantNetLigneMillimes : int
+    +coutMoyenMomentVenteMillimes : int
+    +categorieFiscaleCodeSnapshot : String [0..1]
+    +tauxTaxeBasisPointsSnapshot : int [0..1]
+  }
+
+  class ReglementClient {
+    +id : int
+    +numero : String
+    +montantMillimes : int
+    +dateHeure : DateTime
+    +reference : String [0..1]
+    +commentaire : String [0..1]
+    +statut : StatutDocument
+    +annuler(motif : String)
+  }
+
+  class AffectationReglementClient {
+    +id : int
+    +montantMillimes : int
+  }
+
+  class AvoirVente {
+    +id : int
+    +numero : String
+    +dateHeure : DateTime
+    +montantTotalMillimes : int
+    +motif : String
+    +statut : StatutAvoir
+    +soldeDisponibleMillimes() : int
+    +annuler(motif : String)
+  }
+
+  class LigneAvoirVente {
+    +id : int
+    +quantiteMilliunites : int
+    +prixUnitaireOrigineMillimes : int [0..1]
+    +remiseOrigineMillimes : int [0..1]
+    +montantLigneMillimes : int
+    +etatRetour : EtatRetour [0..1]
+  }
+
+  class OperationAvoirVente {
+    +id : int
+    +type : TypeOperationAvoirVente
+    +montantMillimes : int
+    +dateHeure : DateTime
+    +statut : StatutDocument
+    +motif : String [0..1]
+  }
+}
+
+' =====================================================
+package "Achats et règlements fournisseurs" {
+  class Achat {
+    +id : int
+    +numero : String
+    +dateHeure : DateTime
+    +referenceFactureFournisseur : String [0..1]
+    +totalNetMillimes : int
+    +montantCashAppliqueMillimes : int
+    +statut : StatutAchat
+    +remarque : String [0..1]
+    +motifAnnulation : String [0..1]
+    +resteDuInitialMillimes() : int
+    +soldeDuCourantMillimes() : int
+    +valider()
+    +annuler(motif : String)
+  }
+
+  class LigneAchat {
+    +id : int
+    +quantiteMilliunites : int
+    +prixAchatUnitaireMillimes : int
+    +typeRemise : TypeRemise
+    +remisePourcentageBasisPoints : int [0..1]
+    +remiseMontantMillimes : int [0..1]
+    +remiseAppliqueeMillimes : int
+    +montantNetLigneMillimes : int
+    +categorieFiscaleCodeSnapshot : String [0..1]
+    +tauxTaxeBasisPointsSnapshot : int [0..1]
+  }
+
+  class ReglementFournisseur {
+    +id : int
+    +numero : String
+    +montantMillimes : int
+    +dateHeure : DateTime
+    +reference : String [0..1]
+    +commentaire : String [0..1]
+    +statut : StatutDocument
+    +annuler(motif : String)
+  }
+
+  class AffectationReglementFournisseur {
+    +id : int
+    +montantMillimes : int
+  }
+
+  class AvoirAchat {
+    +id : int
+    +numero : String
+    +dateHeure : DateTime
+    +montantTotalMillimes : int
+    +motif : String
+    +statut : StatutAvoir
+    +soldeDisponibleMillimes() : int
+    +annuler(motif : String)
+  }
+
+  class LigneAvoirAchat {
+    +id : int
+    +quantiteMilliunites : int
+    +prixAchatOrigineMillimes : int [0..1]
+    +remiseOrigineMillimes : int [0..1]
+    +montantLigneMillimes : int
+  }
+
+  class OperationAvoirAchat {
+    +id : int
+    +type : TypeOperationAvoirAchat
+    +montantMillimes : int
+    +dateHeure : DateTime
+    +statut : StatutDocument
+    +motif : String [0..1]
+  }
+}
+
+' =====================================================
+package "Traçabilité" {
+  class JournalAudit {
+    +id : int
+    +dateHeure : DateTime
+    +action : String
+    +module : String
+    +typeDocument : TypeSourceDocument [0..1]
+    +documentId : int [0..1]
+    +ancienneValeur : String [0..1]
+    +nouvelleValeur : String [0..1]
+    +motif : String [0..1]
+  }
+}
+
+' =====================================================
+' Enumerations
+enum TypeDocument {
+  VENTE
+  AVOIR_VENTE
+  ACHAT
+  AVOIR_ACHAT
+  REGLEMENT_CLIENT
+  REGLEMENT_FOURNISSEUR
+  INVENTAIRE
+  CORRECTION_STOCK
+  OPERATION_CAISSE_MANUELLE
+  MOUVEMENT_CAISSE
+}
+
+enum TypeSourceDocument {
+  VENTE
+  AVOIR_VENTE
+  ACHAT
+  AVOIR_ACHAT
+  REGLEMENT_CLIENT
+  REGLEMENT_FOURNISSEUR
+  OPERATION_AVOIR_VENTE
+  OPERATION_AVOIR_ACHAT
+  INVENTAIRE
+  CORRECTION_STOCK
+  OPERATION_CAISSE_MANUELLE
+}
+
+enum TypeVente {
+  COMPTANT
+  CREDIT
+  MIXTE
+}
+
+enum StatutVente {
+  EN_ATTENTE
+  VALIDEE
+  ANNULEE
+}
+
+enum StatutAchat {
+  BROUILLON
+  VALIDE
+  ANNULE
+}
+
+enum StatutAvoir {
+  VALIDE
+  EPUISE
+  ANNULE
+}
+
+enum StatutDocument {
+  VALIDE
+  ANNULE
+}
+
+enum TypeRemise {
+  AUCUNE
+  POURCENTAGE
+  MONTANT_FIXE
+}
+
+enum TypeOperationAvoirVente {
+  UTILISATION_SUR_VENTE
+  COMPENSATION_CREANCE
+  REMBOURSEMENT_ESPECES
+}
+
+enum TypeOperationAvoirAchat {
+  IMPUTATION_DETTE
+  UTILISATION_SUR_ACHAT
+  REMBOURSEMENT_ESPECES
+}
+
+enum EtatRetour {
+  INTACT_REVENDABLE
+  ENDOMMAGE
+  DEFECTUEUX
+}
+
+enum CompartimentStock {
+  DISPONIBLE
+  ENDOMMAGE_BLOQUE
+}
+
+enum TypeMouvementStock {
+  ENTREE_ACHAT
+  SORTIE_VENTE
+  RETOUR_CLIENT_REVENDABLE
+  RETOUR_CLIENT_ENDOMMAGE
+  RETOUR_FOURNISSEUR
+  CORRECTION_POSITIVE
+  CORRECTION_NEGATIVE
+  INVENTAIRE
+  MISE_AU_REBUT
+  REMISE_EN_STOCK
+}
+
+enum SensMouvement {
+  ENTREE
+  SORTIE
+}
+
+enum CategorieMouvementCaisse {
+  VENTE_CASH
+  REGLEMENT_CLIENT
+  REMBOURSEMENT_CLIENT
+  ACHAT_CASH
+  REGLEMENT_FOURNISSEUR
+  REMBOURSEMENT_FOURNISSEUR
+  DEPENSE
+  AUTRE_ENTREE
+  AUTRE_SORTIE
+  ANNULATION
+}
+
+enum CategorieOperationCaisseManuelle {
+  DEPENSE
+  AUTRE_ENTREE
+  AUTRE_SORTIE
+}
+
+enum StatutSession {
+  OUVERTE
+  CLOTUREE
+}
+
+enum StatutInventaire {
+  EN_COURS
+  VALIDE
+}
+
+enum TypeSauvegarde {
+  AUTOMATIQUE
+  MANUELLE
+  EXTERNE
+}
+
+enum StatutSauvegarde {
+  REUSSIE
+  ECHEC
+}
+
+' =====================================================
+' Relations : paramètres
+ParametresMagasin ..> Sauvegarde : configure la sauvegarde
+ParametresMagasin "1" o-- "0..*" CategorieFiscale : configure si applicable
+CompteurDocument ..> TypeDocument
+
+' Relations : catalogue et stock
+Famille "1" o-- "0..*" SousFamille : contient
+Famille "0..1" <-- "0..*" Article : classe
+SousFamille "0..1" <-- "0..*" Article : classe
+Emplacement "0..1" <-- "0..*" Article : localise
+CategorieFiscale "0..1" <-- "0..*" Article : catégorie par défaut
+Article "1" <-- "0..*" MouvementStock : historique
+Inventaire "1" *-- "1..*" LigneInventaire
+LigneInventaire "0..*" --> "1" Article
+CorrectionStock "1" *-- "1..*" LigneCorrectionStock
+LigneCorrectionStock "0..*" --> "1" Article
+CorrectionStock "1" --> "1..*" MouvementStock : produit les mouvements
+
+' Relations : ventes
+Client "0..1" <-- "0..*" Vente : client facultatif si comptant anonyme
+SessionCaisse "1" <-- "0..*" Vente : session de validation
+Vente "1" *-- "1..*" LigneVente
+LigneVente "0..*" --> "1" Article
+Client "1" <-- "0..*" ReglementClient
+ReglementClient "1" *-- "1..*" AffectationReglementClient
+AffectationReglementClient "0..*" --> "1" Vente : dette soldée
+Vente "0..1" <-- "0..*" AvoirVente : vente d'origine facultative
+Client "0..1" <-- "0..*" AvoirVente : obligatoire pour solde client
+AvoirVente "1" *-- "0..*" LigneAvoirVente
+LigneAvoirVente "0..*" --> "0..1" LigneVente : ligne d'origine
+LigneAvoirVente "0..*" --> "0..1" Article
+AvoirVente "1" *-- "0..*" OperationAvoirVente
+OperationAvoirVente "0..*" --> "0..1" Vente : vente cible, selon le type
+
+' Relations : achats
+Fournisseur "1" <-- "0..*" Achat
+Achat "1" *-- "1..*" LigneAchat
+LigneAchat "0..*" --> "1" Article
+Fournisseur "1" <-- "0..*" ReglementFournisseur
+ReglementFournisseur "1" *-- "1..*" AffectationReglementFournisseur
+AffectationReglementFournisseur "0..*" --> "1" Achat : dette soldée
+Achat "0..1" <-- "0..*" AvoirAchat : achat d'origine facultatif
+Fournisseur "1" <-- "0..*" AvoirAchat
+AvoirAchat "1" *-- "0..*" LigneAvoirAchat
+LigneAvoirAchat "0..*" --> "0..1" LigneAchat : ligne d'origine
+LigneAvoirAchat "0..*" --> "0..1" Article
+AvoirAchat "1" *-- "0..*" OperationAvoirAchat
+OperationAvoirAchat "0..*" --> "0..1" Achat : achat cible, selon le type
+
+' Relations : caisse
+SessionCaisse "1" *-- "0..*" MouvementCaisse
+OperationCaisseManuelle "1" --> "1..*" MouvementCaisse : opération et éventuelle inversion
+MouvementCaisse "0..*" --> "0..1" MouvementCaisse : mouvement d'origine inversé
+ReglementClient "1" --> "0..*" MouvementCaisse : encaissement et éventuelle inversion
+ReglementFournisseur "1" --> "0..*" MouvementCaisse : paiement et éventuelle inversion
+Vente "1" --> "0..*" MouvementCaisse : cash et éventuelle inversion
+Achat "1" --> "0..*" MouvementCaisse : cash et éventuelle inversion
+OperationAvoirVente "1" --> "0..*" MouvementCaisse : remboursement et éventuelle inversion
+OperationAvoirAchat "1" --> "0..*" MouvementCaisse : remboursement et éventuelle inversion
+
+' Relations : audit et enum types
+JournalAudit ..> Vente : trace
+JournalAudit ..> Achat : trace
+JournalAudit ..> AvoirVente : trace
+JournalAudit ..> AvoirAchat : trace
+JournalAudit ..> SessionCaisse : trace
+JournalAudit ..> Article : trace
+Sauvegarde ..> TypeSauvegarde
+Sauvegarde ..> StatutSauvegarde
+OperationCaisseManuelle ..> CategorieOperationCaisseManuelle
+OperationCaisseManuelle ..> StatutDocument
+CorrectionStock ..> StatutDocument
+MouvementStock ..> TypeMouvementStock
+MouvementStock ..> CompartimentStock
+Vente ..> TypeVente
+Vente ..> StatutVente
+LigneVente ..> TypeRemise
+LigneAchat ..> TypeRemise
+AvoirVente ..> StatutAvoir
+OperationAvoirVente ..> TypeOperationAvoirVente
+AvoirAchat ..> StatutAvoir
+OperationAvoirAchat ..> TypeOperationAvoirAchat
+LigneAvoirVente ..> EtatRetour
+MouvementCaisse ..> SensMouvement
+MouvementCaisse ..> CategorieMouvementCaisse
+SessionCaisse ..> StatutSession
+Inventaire ..> StatutInventaire
+
+note as NoteContraintes
+  Contraintes à appliquer dans SQLite/services :
+  - une seule session de caisse OUVERTE au maximum ;
+  - codes articles/clients/fournisseurs uniques ; code-barres unique s'il est renseigné ;
+  - numéro unique par type/année, attribué dans une transaction ;
+  - montants >= 0, quantités de mouvement > 0 ; stock disponible jamais négatif ;
+  - la somme des affectations d'un règlement égale exactement le règlement ;
+  - une seule valeur de remise (pourcentage ou montant fixe) est renseignée par ligne ;
+  - opérations cumulées d'un avoir <= son montant initial ;
+  - une vente cible d'opération d'avoir doit appartenir au même client ;
+  - toute opération cash exige une session ouverte ; les clôtures ne sont pas modifiables ;
+  - les taxes, si applicables, sont calculées à partir des TTC groupés par catégorie/taux et les lignes conservent un snapshot fiscal historique ;
+  - COMPTANT = vente soldée à la validation (espèces et/ou avoir), CREDIT = reste dû sans cash immédiat, MIXTE = cash immédiat et reste dû ;
+  - typeSource et idSource sont tous deux renseignés ou tous deux nuls ; leur cohérence est validée par la couche métier.
+end note
+
+@enduml
