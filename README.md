@@ -1,6 +1,5 @@
-<<<<<<< HEAD
 # Application-de-gestion-d-un-magasin-de-fournitures-scolaires-en-Tunisie
-=======
+
 # Cahier des charges — Application de gestion d'un magasin de fournitures scolaires en Tunisie
 
 **Version : 7.0 — modèle métier clarifié, application desktop locale (Flutter + SQLite), mono-utilisateur, magasin unique, caisse unique, sans dépôt**
