@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+# Application-de-gestion-d-un-magasin-de-fournitures-scolaires-en-Tunisie
+=======
 # Cahier des charges — Application de gestion d'un magasin de fournitures scolaires en Tunisie
 
 **Version : 7.0 — modèle métier clarifié, application desktop locale (Flutter + SQLite), mono-utilisateur, magasin unique, caisse unique, sans dépôt**
@@ -1926,3 +1929,4 @@ Les éléments suivants doivent être validés avant la mise en production :
 - Révision du modèle de données fonctionnel pour qu'il corresponde aux relations et contraintes du diagramme de classes corrigé.
 - Les champs solde dû et avoir disponible sont des soldes calculés et ne doivent pas être librement modifiés.
 - Rappel du périmètre stable : un gérant, un magasin, une caisse, aucun dépôt, aucune authentification applicative, fonctionnement local sans backend.
+>>>>>>> main
